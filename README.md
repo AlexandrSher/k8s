@@ -220,7 +220,8 @@ kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | gre
 “You can see ui:”
 http://localhost:5050/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/
 
-##K8S inclide:
+##K8S inclide
+
 	Master (can be  multiple)
 		Api server(connect all component k8s)
 		etcd(like storege with some feature)
