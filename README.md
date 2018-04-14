@@ -173,3 +173,100 @@ $ kubectl run cent --image=sbeliakou/centos --command sleep 3600
 $ dig @10.96.0.10 grafana.monitoring.svc.cluster.local
 
 ```
+#short info about all steps for install k8s
+
+"Disable SELINUX"
+"Disable SWAP"
+"Installe Docker CE"
+"Configure Docker Daemon"
+ 		"Cgroup Driver: systemd"
+		daemon.json
+start/eanble
+“Add kubernetes.repo”
+"Install Kubernetes"
+		(kubelet, kubeadm, kubectl, kubernetes-cni)
+start/enable
+Configure kernel parameters at boot for k8s
+	/etc/sysctl.d/k8s.conf
+	net.bridge.bridge-nf-call-ip6tables = 1
+	net.bridge.bridge-nf-call-iptables = 1
+           (sysctl –system)
+kubeadm init --apiserver-advertise-address 192.168.56.100 --token 12345f.0123456789abcdef --pod-network-cidr 10.244.0.0/16
+
+“Configure Kubernetes Master in Isolation Mode”
+kubectl taint nodes --all node-role.kubernetes.io/master-
+or
+on nodes “Configure Kubernetes Node”
+or on master (kubeadm token create –print-join-command) for get bellow command
+kubeadm join --token ${TOKEN} --discovery-token-unsafe-skip-ca-verification ${IPADDR}:6443
+cp -f /vagrant/.kube/config $HOME/.kube/config
+chown $(id -u):$(id -g) $HOME/.kube/config
+“Install a Pod Network”
+https://gist.githubusercontent.com/sbeliakou/b97ca143b605d479cc1984211d4cacab/raw/799448e1baf5985f534382729729e82a09659eda/kube-flannel.yaml
+kubectl apply -f /home/vagrant/kube-flannel.yaml
+
+“Installe Dashboard”
+		Deploy Dashboard
+		Create admin-user
+
+“Install Ingress Controller”
+Deploy:
+	namespace, default-backend, configmap, tcp-services-configmap, udp-services-configmap, rbac, 	with-rbac, service-nodeport
+kubectl patch svc ingress-nginx -n ingress-nginx --patch '{ "spec":{"externalIPs":[ "192.168.56.120" ] }}'
+“Starts a proxy to the Kubernetes API server”
+kubectl --kubeconfig .kube/config proxy --address='0.0.0.0' –accept-hosts='^*$' --port=5050
+“Get token”		
+kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') | awk '/\s*token:/'
+“You can see ui:”
+http://localhost:5050/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/
+
+##K8S inclide:
+	Master (can be  multiple)
+		Api server(connect all component k8s)
+		etcd(like storege with some feature)
+		scheduler(it's stuff that solve where we'll run our container(plans our resources)
+		controller-manager(fault-tolerance)
+		
+	Nodes (up to 5000)
+		Docker
+		Kubelet(manage docker)
+		kube-proxy(manage iptables)
+	
+kubectl (tool for read yaml and send command to k8s(configure k8s))
+
+container (image+cmd)
+pod (1...N(as a rule we have main container and help container for main if necessary) containers with one ip can has volume for every container)
+	pod ready to work if all container ready
+label(like tag)
+selector(for service discovery)
+replicaset(set number of pod (scaling), control that our pods status will be ready all time independently from nod )
+deployment(replicaset+history old rs(we can set how long save history)+deploy(can set amount deploy_pod in one step))
+	pod v.1    pod v.1    pod v.1
+	pod v.2    pod v.2    pod v.2
+service(dns+virtualip+lb+selector) lb forward requests to pod(ready) with relevant selector
+job(pod+helthcheck)
+cronjob(job+schudule)
+volume(we must set: size, access type(rw(once), ro, rw(cluster file system)), storege class (19 possible realisation) we can connect pod, replicaset, deployment
+statefulset(garant that  name-(0...N) plus volume for every pod)
+ingress(has public ip and forward request to service by hostname or url)in own case it's just nginx
+
+###all k8s's elements set in yaml
+	
+	kind(llike type) (deployment pod services ingress job
+	metadata(name, label)
+	spec(specification )
+		replicas
+		selector
+		template(for kind: replicaset like example)
+		containers
+		ports
+		jobtamlate
+		schedule
+	
+###k8s solves that:
+	logging
+	Metrics
+	Infra Auto
+	Scaling
+	CI/CD
+	Vendor lock-in
